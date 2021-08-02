@@ -27,17 +27,17 @@ class Chromatogram:
         with open(filename) as f:
             for i in range(info_rows):
                 line = f.readline().strip().split("\t")
-                self.info[line[0]] = line[1]
+                self.info[line[0].lower()] = line[1]
                 if line[1].endswith("msec"):
-                    self.info[line[0]] = float(line[1][:-4])/1000
+                    self.info[line[0].lower()] = float(line[1][:-4])/1000
                 if line[1].endswith("nm"):
-                    self.info[line[0]] = float(line[1][:-2])
+                    self.info[line[0].lower()] = float(line[1][:-2])
                 if line[1].endswith("min"):
-                    self.info[line[0]] = float(line[1][:-3])
+                    self.info[line[0].lower()] = float(line[1][:-3])
                 if line[0].endswith("POINTS"):
-                    self.info[line[0]] = int(line[1])
+                    self.info[line[0].lower()] = int(line[1])
                 if line[1]=="true" or line[1]=="false":
-                    self.info[line[0]] = eval(line[1].capitalize())
+                    self.info[line[0].lower()] = eval(line[1].capitalize())
                 
             
     def set_base_chromatogram(self, base_chromatogram):
@@ -236,6 +236,9 @@ class Chromatogram:
     
     def calculate_er(self, enantiomers:Tuple[int])->List[float]:
         return [self.peaks[i].area/sum([self.peaks[j].area for j in enantiomers]) for i in enantiomers]
+
+    def calculate_conversion(self, reactants_peak:int)->float:
+        return (sum([self.peaks[i].area for i in len(self.peaks)])-self.peaks[reactants_peak].area)/sum([self.peaks[i].area for i in len(self.peaks)])
 
     def plot(self, wl_index:Optional[int]=None, peaks:bool=False, gaussians:bool=False, cut:bool=False):
         def hex_to_rgb(hex_color: str) -> tuple:
