@@ -238,7 +238,7 @@ class Chromatogram:
         return [self.peaks[i].area/sum([self.peaks[j].area for j in enantiomers]) for i in enantiomers]
 
     def calculate_conversion(self, reactants_peak:int)->float:
-        return (sum([self.peaks[i].area for i in len(self.peaks)])-self.peaks[reactants_peak].area)/sum([self.peaks[i].area for i in len(self.peaks)])
+        return (sum([p.area for p in self.peaks.values()])-self.peaks[reactants_peak].area)/sum([p.area for p in self.peaks.values()])
 
     def plot(self, wl_index:Optional[int]=None, peaks:bool=False, gaussians:bool=False, cut:bool=False):
         def hex_to_rgb(hex_color: str) -> tuple:
