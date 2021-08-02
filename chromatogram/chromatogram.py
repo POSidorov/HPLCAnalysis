@@ -12,9 +12,9 @@ import plotly
 from peak import Peak
 
 class Chromatogram:
-    def __init__(self, filename:str):
+    def __init__(self, filename:str, info_rows:int=11):
         self.filename:str = filename
-        self.intensity:DataFrame = pd.read_table(filename, delimiter="\t", skiprows=12, header=None)
+        self.intensity:DataFrame = pd.read_table(filename, delimiter="\t", skiprows=info_rows+1, header=None)
         self.intensity = self.intensity.fillna(0)
         self.peaks:Dict[int, Peak] = {}
         self.ignored_peaks:Dict[int, Peak] = {}
@@ -22,18 +22,23 @@ class Chromatogram:
         self.calibration:Dict[int, float] = {}
         self.base_chromatogram = None
         
+        self.info = {}
+
         with open(filename) as f:
-            self.datatype = f.readline().strip().split("\t")[1]
-            self.time_interval = float(f.readline().strip().split("\t")[1][:-4])/1000
-            self.wl_interval = float(f.readline().strip().split("\t")[1][:-2])
-            self.start_time = float(f.readline().strip().split("\t")[1][:-3])
-            self.end_time = float(f.readline().strip().split("\t")[1][:-3])
-            self.start_wl = float(f.readline().strip().split("\t")[1][:-2])
-            self.end_wl = float(f.readline().strip().split("\t")[1][:-2])
-            self.time_points = int(f.readline().strip().split("\t")[1])
-            self.wl_points = int(f.readline().strip().split("\t")[1])
-            self.new_pda = eval(f.readline().strip().split("\t")[1].capitalize())
-            self.intensity_unit = f.readline().strip().split("\t")[1]
+            for i in range(info_rows):
+                line = f.readline().strip().split("\t")
+                self.info[line[0]] = line[1]
+                if line[1].endswith("msec"):
+                    self.info[line[0]] = float(line[1][:-4])/1000
+                if line[1].endswith("nm"):
+                    self.info[line[0]] = float(line[1][:-2])
+                if line[1].endswith("min"):
+                    self.info[line[0]] = float(line[1][:-3])
+                if line[0].endswith("POINTS"):
+                    self.info[line[0]] = int(line[1])
+                if line[1]=="true" or line[1]=="false":
+                    self.info[line[0]] = eval(line[1].capitalize())
+                
             
     def set_base_chromatogram(self, base_chromatogram):
         self.base_chromatogram = base_chromatogram
@@ -160,11 +165,11 @@ class Chromatogram:
         """
         
         if before and unit=="s":
-            before = int(before/self.time_interval)
+            before = int(before/self.info["time_interval"])
         if not before:
             before = 0
         if after and unit == "s":
-            after = int(after/self.time_interval)
+            after = int(after/self.info["time_interval"])
         if not after:
             after = self.intensity.shape[0]
         self.intensity = self.intensity.loc[range(before, after)]
@@ -208,7 +213,7 @@ class Chromatogram:
         """
         areas = []
         for ind, peak in self.peaks.items():
-            peak.calculate_area(self.intensity, self.time_interval, cut)
+            peak.calculate_area(self.intensity, self.info["time_interval"], cut)
             areas.append(peak.area)
         return areas
     
@@ -260,7 +265,7 @@ class Chromatogram:
                                         color=colors[i] #set color equal to a variable
                                      ),
                                      customdata=np.dstack((["Peak "+str(i)],
-                                                           [p.center*self.time_interval],
+                                                           [p.center*self.info["time_interval"]],
                                                            [p.area],
                                                            [self.ratios[i]])),
                                      hovertemplate='<b>%{customdata[0][0]}</b><br>center: %{customdata[0][1]:.1f}s<br>area: %{customdata[0][2]:f}<br>ratio: %{customdata[0][3]:.1%}'))
@@ -312,10 +317,10 @@ class Chromatogram:
                 tickmode = 'array',
                 tickvals = np.arange(np.ceil(self.intensity[wl_index].index[0]/500)*500,
                                        np.ceil(self.intensity[wl_index].index[-1]/500)*500,500),
-                ticktext = [i*self.time_interval for i in np.arange(np.ceil(self.intensity[wl_index].index[0]/500)*500,
+                ticktext = [i*self.info["time_interval"] for i in np.arange(np.ceil(self.intensity[wl_index].index[0]/500)*500,
                                        np.ceil(self.intensity[wl_index].index[-1]/500)*500,500)]
             )
         )
-        fig.update_layout(title_text=self.filename+"<br>Wavelength: "+str(int(self.start_wl+wl_index*self.wl_interval))+"nm", title_x=0.5)
+        fig.update_layout(title_text=self.filename+"<br>Wavelength: "+str(int(self.info["start_wl"]+wl_index*self.info["wl_interval"]))+"nm", title_x=0.5)
 
         return fig
