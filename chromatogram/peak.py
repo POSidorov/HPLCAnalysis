@@ -28,10 +28,14 @@ class Peak:
         self.baseline = lmodel.fit([list(y)[0]]+[list(y)[-1]], x=[list(x)[0]]+[list(x)[-1]])
         
     def fit_gaussian(self, intensity:DataFrame):
-        gmodel = GaussianModel()
+        #gmodel = GaussianModel()
+        #params = gmodel.make_params(center=self.center, 
+        #                            amplitude=intensity.loc[self.center,self.wl_index], 
+        #                            sigma=5)
+        gmodel = SkewedGaussianModel()
         params = gmodel.make_params(center=self.center, 
                                     amplitude=intensity.loc[self.center,self.wl_index], 
-                                    sigma=5)
+                                    sigma=5, gamma=0.1)
         x = intensity.loc[self.left:self.right,self.wl_index].index
         y = intensity.loc[self.left:self.right,self.wl_index] - self.baseline.eval(x = x)
         self.gaussian = gmodel.fit(y, params, x=x)
@@ -44,8 +48,15 @@ class Peak:
         if cut:
             gauss_left = list(x).index(int(self.gaussian.params["center"].value - 3*self.gaussian.params["sigma"].value))
             gauss_right = list(x).index(int(self.gaussian.params["center"].value + 3*self.gaussian.params["sigma"].value))
-            approx = self.gaussian.eval()[gauss_left:gauss_right] 
+            approx = self.gaussian.eval()[left:right] 
         else:
             approx = self.gaussian.eval()
         self.area = trapz(approx, dx=time_interval)
-
+    
+    def intersects(self, other)->bool:
+        if other.gaussian is not None:
+            return bool(set(range(self.left, self.right)).intersection(set(range(other.gaussian_left, other.gaussian_right))))
+        return bool(set(range(self.left, self.right)).intersection(set(range(other.left, other.right))))
+    
+    def __str__(self):
+        return "Peak: center {}, right {}, left {}".format(self.center, self.right, self.left)

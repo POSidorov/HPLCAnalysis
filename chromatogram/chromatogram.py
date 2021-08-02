@@ -12,7 +12,7 @@ import plotly
 from peak import Peak
 
 class Chromatogram:
-    def __init__(self, filename:str, base_chromatogram:Chromatogram=None):
+    def __init__(self, filename:str):
         self.filename:str = filename
         self.intensity:DataFrame = pd.read_table(filename, delimiter="\t", skiprows=12, header=None)
         self.intensity = self.intensity.fillna(0)
@@ -20,7 +20,7 @@ class Chromatogram:
         self.ignored_peaks:Dict[int, Peak] = {}
         self.ratios:Dict[int, float] = {}
         self.calibration:Dict[int, float] = {}
-        self.base_chromatogram = base_chromatogram
+        self.base_chromatogram = None
         
         with open(filename) as f:
             self.datatype = f.readline().strip().split("\t")[1]
@@ -34,6 +34,9 @@ class Chromatogram:
             self.wl_points = int(f.readline().strip().split("\t")[1])
             self.new_pda = eval(f.readline().strip().split("\t")[1].capitalize())
             self.intensity_unit = f.readline().strip().split("\t")[1]
+            
+    def set_base_chromatogram(self, base_chromatogram):
+        self.base_chromatogram = base_chromatogram
             
     def _optional(self, value, default):
         """Helper function that sets the optional value with given or default.
@@ -55,7 +58,8 @@ class Chromatogram:
         else:
             return value
             
-    def calculate_peaks(self, wl_index:Optional[int]=None, wl:Optional[int]=None, height_diff:float=0.3):
+    def calculate_peaks(self, wl_index:Optional[int]=None, wl:Optional[int]=None, 
+                        height_diff:float=0.3, min_height_diff:float=0.01):
         """Function that scans the chromatogram intensity at given index or wavelength to identify peaks.
         Creates a class atribute "peaks" as a dictionary with the following information:
         - "wl_index": The Wl index at which the peaks were found;
@@ -78,26 +82,35 @@ class Chromatogram:
         wl_index = self._optional(wl_index, 0)
         if wl is not None:
             wl_index = int((wl-self.start_wl)/self.wl_interval)
+            
+        if self.base_chromatogram is None:
         #
-        peaks, properties = signal.find_peaks(self.intensity[wl_index],
-                                              prominence=self.intensity[wl_index].max()*height_diff)
-        mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=10)[0]
-        right_sides = np.searchsorted(mins, peaks, side="right")
-        for i in range(len(peaks)):
-            self.peaks[i] = Peak(wl_index, list(self.intensity[wl_index].index[peaks])[i],
-                            list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
-                            list(self.intensity[wl_index].index[mins[right_sides]])[i])
-            if self.base_chromatogram is not None:
-                not_found = True
-                for ind, p in self.base_chromatogram.peaks.items():
-                    if p.left<self.peaks[i].center<p.right:
-                        not_found = False
-                        self.peaks[ind] = self.peaks[i]
-                        break
-                if not_found:
-                    self.ignore_peak(i)
-                if i not in self.base_chromatogram.peaks.keys():
-                    self.ignore_peak(i)
+            peaks, properties = signal.find_peaks(self.intensity[wl_index],
+                                                  prominence=self.intensity[wl_index].max()*height_diff)
+            mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=10)[0]
+            right_sides = np.searchsorted(mins, peaks, side="right")
+            for i in range(len(peaks)):
+                self.peaks[i] = Peak(wl_index, list(self.intensity[wl_index].index[peaks])[i],
+                                list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
+                                list(self.intensity[wl_index].index[mins[right_sides]])[i])
+        else:
+            peaks, properties = signal.find_peaks(self.intensity[wl_index],
+                                                  prominence=self.intensity[wl_index].max()*min_height_diff)
+                
+            mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=10)[0]
+            right_sides = np.searchsorted(mins, peaks, side="right")
+            
+            assigned_peaks = []
+            for i in range(len(peaks)):
+                peak = Peak(wl_index, list(self.intensity[wl_index].index[peaks])[i],
+                                list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
+                                list(self.intensity[wl_index].index[mins[right_sides]])[i])
+                for j in self.base_chromatogram.peaks.keys():
+                    if j not in assigned_peaks:
+                        if peak.intersects(self.base_chromatogram.peaks[j]):
+                            self.peaks[j] = peak
+                            assigned_peaks.append(j)
+                            break
         
     def ignore_peak(self, peak_index):
         """Function that removes the peak from the list of peaks.
@@ -225,7 +238,8 @@ class Chromatogram:
             if len(hex_color) == 3:
                 hex_color = hex_color * 2
             return int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-        wl_index = self._optional(wl_index, self.peaks[0].wl_index)
+        if len(self.peaks)>0:
+            wl_index = self._optional(wl_index, self.peaks[0].wl_index)
         fig = go.Figure()
 
         colors = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33']
@@ -305,4 +319,3 @@ class Chromatogram:
         fig.update_layout(title_text=self.filename+"<br>Wavelength: "+str(int(self.start_wl+wl_index*self.wl_interval))+"nm", title_x=0.5)
 
         return fig
-    
