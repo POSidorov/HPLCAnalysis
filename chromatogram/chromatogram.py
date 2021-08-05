@@ -1,13 +1,27 @@
+# -*- coding: utf-8 -*-
+#
+#  Copyright 2021 Pavel Sidorov <pavel.o.sidorov@gmail.com>
+#  This file is part of Reaction Feasibility Estimator.
+#
+#  Reaction Feasibility Estimator is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 3 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, see <https://www.gnu.org/licenses/>.
+
 import pandas as pd
 from pandas import DataFrame
 import numpy as np
 from scipy import signal
 from numpy import trapz
 from typing import Optional, List, Dict, Tuple
-
-import plotly.graph_objects as go
-import plotly.express as px
-import plotly
 
 from peak import Peak
 
@@ -40,7 +54,7 @@ class Chromatogram:
                     self.info[line[0].lower()] = eval(line[1].capitalize())
                 
             
-    def set_base_chromatogram(self, base_chromatogram):
+    def set_base_chromatogram(self, base_chromatogram:"Chromatogram"):
         """Helper function that sets the base chromatogram. This is used for peak detection and calibration.
 
         Parameters
@@ -300,7 +314,6 @@ class Chromatogram:
         """Function that calculates the conversion by excluding certain peaks (e.g. excluding substrate)
         conversion(X) = (sum_ratios - ratio(X))/sum_ratios
         It assumes the sum of all ratios is 1.
-        to
 
         Parameters
         ----------
@@ -321,91 +334,3 @@ class Chromatogram:
             if to_exclude not in self.peaks.keys():
                 return 1.
             return 1.-self.ratios[to_exclude]
-
-    def plot(self, wl_index:Optional[int]=None, peaks:bool=False, gaussians:bool=False, cut:bool=False):
-        def hex_to_rgb(hex_color: str) -> tuple:
-            hex_color = hex_color.lstrip("#")
-            if len(hex_color) == 3:
-                hex_color = hex_color * 2
-            return int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-        if len(self.peaks)>0:
-            wl_index = self._optional(wl_index, self.peaks[0].wl_index)
-        fig = go.Figure()
-
-        colors = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33']
-
-        fig.add_trace(go.Scatter(x=self.intensity[wl_index].index, y=self.intensity[wl_index], 
-                                 name="chromatogram",
-                                 line_shape='linear',
-                                 line_color="black",
-                                 hovertemplate=None
-                                    ))
-        if peaks:
-            for i, p in self.peaks.items():
-                fig.add_trace(go.Scatter(x=[p.center], y=[self.intensity.loc[p.center,wl_index]], 
-                                     name="Peak "+str(i),mode='markers', 
-                                     marker=dict(
-                                        symbol="triangle-down",
-                                        size=15,
-                                        color=colors[i] #set color equal to a variable
-                                     ),
-                                     customdata=np.dstack((["Peak "+str(i)],
-                                                           [p.center*self.info["time_interval"]],
-                                                           [p.area],
-                                                           [self.ratios[i]])),
-                                     hovertemplate='<b>%{customdata[0][0]}</b><br>center: %{customdata[0][1]:.1f}s<br>area: %{customdata[0][2]:f}<br>ratio: %{customdata[0][3]:.1%}'))
-                fig.add_trace(go.Scatter(x=[p.left], y=[self.intensity.loc[p.left,wl_index]], 
-                                     name="Peak "+str(i),mode='markers', 
-                                     marker=dict(
-                                        symbol="triangle-up",
-                                        size=15,
-                                        color=colors[i] #set color equal to a variable
-                                     )))
-                fig.add_trace(go.Scatter(x=[p.right], y=[self.intensity.loc[p.right,wl_index]], 
-                                     name="Peak "+str(i),mode='markers', 
-                                     marker=dict(
-                                        symbol="triangle-up",
-                                        size=15,
-                                        color=colors[i] #set color equal to a variable
-                                     )))
-        if gaussians:
-            for i, p in self.peaks.items():
-                x = p.gaussian.data.index
-                baseline = p.baseline.eval(x=x)
-                approx = list(p.gaussian.eval()+baseline)
-
-                fig.add_trace(go.Scatter(x=list(x)+list(x)[::-1], y=approx+list(baseline), 
-                                     name="",
-                                     line_shape='linear',
-                                     fill='toself',
-                                     fillcolor=f"rgba{(*hex_to_rgb(colors[i]), 0.2)}",
-                                     line = dict(color=colors[i], width=2, dash='dash')
-                                     ))
-
-        fig.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                xaxis_title="Retention time (s)",
-                yaxis_title="Intensity",
-                showlegend=False,
-                autosize=False,
-                width=800,
-                height=500,
-                margin=dict(l=10, r=10, t=50, b=10),
-                paper_bgcolor="white"
-        )
-        fig.update_xaxes(showline=True, gridwidth=0.5, gridcolor='lightgrey', 
-                            zeroline=True, zerolinewidth=0.5, zerolinecolor='black')
-        fig.update_yaxes(showline=True, gridwidth=0.5, gridcolor='lightgrey',
-                            zeroline=True, zerolinewidth=0.5, zerolinecolor='black')
-        fig.update_layout(
-            xaxis = dict(
-                tickmode = 'array',
-                tickvals = np.arange(np.ceil(self.intensity[wl_index].index[0]/500)*500,
-                                       np.ceil(self.intensity[wl_index].index[-1]/500)*500,500),
-                ticktext = [i*self.info["time_interval"] for i in np.arange(np.ceil(self.intensity[wl_index].index[0]/500)*500,
-                                       np.ceil(self.intensity[wl_index].index[-1]/500)*500,500)]
-            )
-        )
-        fig.update_layout(title_text=self.filename+"<br>Wavelength: "+str(int(self.info["start_wl"]+wl_index*self.info["wl_interval"]))+"nm", title_x=0.5)
-
-        return fig
