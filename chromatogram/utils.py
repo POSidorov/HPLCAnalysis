@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
 #  Copyright 2021 Pavel Sidorov <pavel.o.sidorov@gmail.com>
-#  This file is part of Reaction Feasibility Estimator.
+#  This file is part of HPLCAnalysis project.
 #
-#  Reaction Feasibility Estimator is free software; you can redistribute it and/or modify
+#  HPLCAnalysis is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
@@ -16,7 +16,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, see <https://www.gnu.org/licenses/>.
 
-
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly
@@ -25,13 +24,37 @@ from peak import Peak
 from chromatogram import Chromatogram
 
 def plot(ch:Chromatogram, wl_index:Optional[int]=None, peaks:bool=False, gaussians:bool=False, cut:bool=False):
+    """Function that creates a figure for the given chromatogram, with information on peaks if required.
+
+        Parameters
+        ----------
+        ch : Chromatogram
+            chromatogram to visualize
+        wl_index : int, optional
+            if given, visualizes the plot at this specific wavelength. Otherwise, uses the WL of the peaks.
+        peaks: bool
+            indicate the position of peaks (center, left and right) on the plot
+        gaussians: bool
+            plot the fitted gaussian for every peak
+        cut: bool
+            visualize the gaussians with limits put as +-3*sigma
+        
+        Returns
+        -------
+        Plotly figure
+    """
+
+    # helper function to transform a color from hex to RGB
     def hex_to_rgb(hex_color: str) -> tuple:
         hex_color = hex_color.lstrip("#")
         if len(hex_color) == 3:
             hex_color = hex_color * 2
         return int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+
+    
     if len(ch.peaks)>0:
         wl_index = ch._optional(wl_index, ch.peaks[0].wl_index)
+
     fig = go.Figure()
 
     colors = ['#e41a1c','#377eb8','#4daf4a','#984ea3','#ff7f00','#ffff33']
