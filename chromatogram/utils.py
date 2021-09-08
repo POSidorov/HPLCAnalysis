@@ -66,6 +66,38 @@ def plot(ch:Chromatogram, wl_index:Optional[int]=None, peaks:bool=False, gaussia
                              hovertemplate=None
                                 ))
     if peaks:
+        # if "peaks" is set to True, will show the position of peaks as well as corresponding minima,
+        # and will show the peak number and position (in s) on hover
+        for i, p in ch.peaks.items():
+            fig.add_trace(go.Scatter(x=[p.center], y=[ch.intensity.loc[p.center,wl_index]], 
+                                 name="Peak "+str(i),mode='markers', 
+                                 marker=dict(
+                                    symbol="triangle-down",
+                                    size=15,
+                                    color=colors[i] #set color equal to a variable
+                                 ),
+                                 customdata=np.dstack((["Peak "+str(i)],
+                                                       [p.center*ch.info["time_interval"]]
+                                                       )),
+                                 hovertemplate='<b>%{customdata[0][0]}</b><br>center: %{customdata[0][1]:.1f}s'))
+            fig.add_trace(go.Scatter(x=[p.left], y=[ch.intensity.loc[p.left,wl_index]], 
+                                 name="Peak "+str(i),mode='markers', 
+                                 marker=dict(
+                                    symbol="triangle-up",
+                                    size=15,
+                                    color=colors[i] #set color equal to a variable
+                                 )))
+            fig.add_trace(go.Scatter(x=[p.right], y=[ch.intensity.loc[p.right,wl_index]], 
+                                 name="Peak "+str(i),mode='markers', 
+                                 marker=dict(
+                                    symbol="triangle-up",
+                                    size=15,
+                                    color=colors[i] #set color equal to a variable
+                                 )))
+    elif gaussians:
+        # if "peaks" is set to True, will show the position of peaks as well as corresponding minima,
+        # and will show the peak number, position (in s), area and ratio on hover; in addition, will 
+        # show the fitted gaussians and baselines for each detected peak.
         for i, p in ch.peaks.items():
             fig.add_trace(go.Scatter(x=[p.center], y=[ch.intensity.loc[p.center,wl_index]], 
                                  name="Peak "+str(i),mode='markers', 
@@ -93,8 +125,7 @@ def plot(ch:Chromatogram, wl_index:Optional[int]=None, peaks:bool=False, gaussia
                                     size=15,
                                     color=colors[i] #set color equal to a variable
                                  )))
-    if gaussians:
-        for i, p in ch.peaks.items():
+
             x = p.gaussian.data.index
             baseline = p.baseline.eval(x=x)
             approx = list(p.gaussian.eval()+baseline)
@@ -122,6 +153,7 @@ def plot(ch:Chromatogram, wl_index:Optional[int]=None, peaks:bool=False, gaussia
                         zeroline=True, zerolinewidth=0.5, zerolinecolor='black')
     fig.update_yaxes(showline=True, gridwidth=0.5, gridcolor='lightgrey',
                         zeroline=True, zerolinewidth=0.5, zerolinecolor='black')
+    # the X axis is rescaled to be shown in seconds
     fig.update_layout(
         xaxis = dict(
             tickmode = 'array',
