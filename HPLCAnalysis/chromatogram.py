@@ -20,20 +20,19 @@ import pandas as pd
 from pandas import DataFrame
 import numpy as np
 from scipy import signal
-from numpy import trapz
 from typing import Optional, List, Dict, Tuple
+from .peak import Peak
 
-from peak import Peak
 
 class Chromatogram:
-    def __init__(self, filename:str, info_rows:int=11):
-        self.filename:str = filename
-        self.intensity:DataFrame = pd.read_table(filename, delimiter="\t", skiprows=info_rows+1, header=None)
+    def __init__(self, filename: str, info_rows: int = 11):
+        self.filename: str = filename
+        self.intensity: DataFrame = pd.read_table(filename, delimiter="\t", skiprows=info_rows+1, header=None)
         self.intensity = self.intensity.fillna(0)
-        self.peaks:Dict[int, Peak] = {}
-        self.ignored_peaks:Dict[int, Peak] = {}
-        self.ratios:Dict[int, float] = {}
-        self.calibration:Dict[int, float] = {}
+        self.peaks: Dict[int, Peak] = {}
+        self.ignored_peaks: Dict[int, Peak] = {}
+        self.ratios: Dict[int, float] = {}
+        self.calibration: Dict[int, float] = {}
         self.base_chromatogram = None
         
         self.info = {}
@@ -50,11 +49,10 @@ class Chromatogram:
                     self.info[line[0].lower()] = float(line[1][:-3])
                 if line[0].endswith("POINTS"):
                     self.info[line[0].lower()] = int(line[1])
-                if line[1]=="true" or line[1]=="false":
+                if line[1] == "true" or line[1] == "false":
                     self.info[line[0].lower()] = eval(line[1].capitalize())
-                
-            
-    def set_base_chromatogram(self, base_chromatogram:"Chromatogram"):
+
+    def set_base_chromatogram(self, base_chromatogram: "Chromatogram"):
         """Helper function that sets the base chromatogram. This is used for peak detection and calibration.
 
         Parameters
@@ -67,29 +65,10 @@ class Chromatogram:
         None
         """
         self.base_chromatogram = base_chromatogram
-            
-    def _optional(self, value, default):
-        """Helper function that sets the optional value with given or default.
 
-        Parameters
-        ----------
-        value : Any
-            the argument of the function that is checked against None
-        default : Any
-            A default value to return if the given argument is None
-
-        Returns
-        -------
-        Any
-            given value, or default value if None is given
-        """
-        if value is None:
-            return default
-        else:
-            return value
             
-    def calculate_peaks(self, wl_index:Optional[int]=None, wl:Optional[int]=None, 
-                        height_diff:float=0.3, min_height_diff:float=0.01):
+    def calculate_peaks(self, wl_index: Optional[int] = None, wl: Optional[int] = None,
+                        height_diff: float = 0.3, min_height_diff: float = 0.01):
         """Function that scans the chromatogram intensity at given index or wavelength to identify peaks.
         Creates a class atribute "peaks" as a dictionary with the following information:
         - "wl_index": The Wl index at which the peaks were found;
@@ -116,26 +95,24 @@ class Chromatogram:
             wl_index = int((wl-self.info["start_wl"])/self.info["wl_interval"])
             
         if self.base_chromatogram is None:
-        #
             peaks, properties = signal.find_peaks(self.intensity[wl_index],
                                                   prominence=self.intensity[wl_index].max()*height_diff)
             mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=10)[0]
             right_sides = np.searchsorted(mins, peaks, side="right")
             for i in range(len(peaks)):
                 self.peaks[i] = Peak(wl_index, list(self.intensity[wl_index].index[peaks])[i],
-                                list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
-                                list(self.intensity[wl_index].index[mins[right_sides]])[i])
+                                     list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
+                                     list(self.intensity[wl_index].index[mins[right_sides]])[i])
         else:
-             # The detection of peaks in case where base chromatogram is set
+            #  The detection of peaks in case where base chromatogram is set
             maxes, properties = signal.find_peaks(self.intensity[wl_index],
                                                   prominence=self.intensity[wl_index].max()*min_height_diff)
-                
             mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=10)[0]
             right_sides = np.searchsorted(mins, maxes, side="right")
             
             peaks = [Peak(wl_index, list(self.intensity[wl_index].index[maxes])[i],
-                                list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
-                                list(self.intensity[wl_index].index[mins[right_sides]])[i]) for i in range(len(maxes))]
+                          list(self.intensity[wl_index].index[mins[right_sides-1]])[i],
+                          list(self.intensity[wl_index].index[mins[right_sides]])[i]) for i in range(len(maxes))]
             
             # First, the loop goes through all peaks in the base chromatogram.
             # Every peak that can be uniquely assigned, is assigned.
@@ -149,13 +126,13 @@ class Chromatogram:
             # they will be assigned to the peaks of the base chromatogram that are left       
             for j in self.base_chromatogram.peaks.keys():
                 intersections = [i for i in range(len(peaks)) if peaks[i].intersects(self.base_chromatogram.peaks[j])]
-                if len(intersections)>1:
+                if len(intersections) > 1:
                     for i in intersections:
                         if i not in assigned_peaks:
                             self.peaks[j] = peaks[i]
                             assigned_peaks.append(j)
         
-    def ignore_peak(self, peak_index:int):
+    def ignore_peak(self, peak_index: int):
         """Function that removes the peak from the list of peaks.
 
         Parameters
@@ -184,7 +161,7 @@ class Chromatogram:
             peak.fit_baseline(self.intensity)
             peak.fit_gaussian(self.intensity)
         
-    def cut_time(self, before:Optional[int]=None, after:Optional[int]=None, unit:str="s"):
+    def cut_time(self, before: Optional[int] = None, after: Optional[int] = None, unit:str = "s"):
         """Function that cuts the rows of the intensity table before and/or after a given point.
 
         Parameters
@@ -202,7 +179,7 @@ class Chromatogram:
         None
         """
         
-        if before and unit=="s":
+        if before and unit == "s":
             before = int(before/self.info["time_interval"])
         if not before:
             before = 0
@@ -212,7 +189,7 @@ class Chromatogram:
             after = self.intensity.shape[0]
         self.intensity = self.intensity.loc[range(before, after)]
         
-    def calibrate(self, calibration_values:Dict[int,float]):
+    def calibrate(self, calibration_values: Dict[int, float]):
         """Function that caluculated the calibration coefficients given the values to which it should calibrate.
 
         Parameters
@@ -235,7 +212,7 @@ class Chromatogram:
                 coefficient = v/100./self.ratios[k]
                 self.calibration[k] = coefficient
                 
-    def calculate_calibrated_ratios(self, external_calibration_values:Optional[Dict[int,float]]=None):
+    def calculate_calibrated_ratios(self, external_calibration_values: Optional[Dict[int, float]] = None):
         """Function recalculates the ratios either with own calibration coefficients, or with external ones.
 
         Parameters
@@ -247,13 +224,13 @@ class Chromatogram:
         -------
         None
         """
-        calibrated_ratios = []
+        calibrated_ratios = []  # Not used now
         if external_calibration_values is not None:
             ratio_sum = 0
             for ind, ratio in self.ratios.items():
                 self.ratios[ind] = ratio*external_calibration_values[ind]
                 ratio_sum += ratio*external_calibration_values[ind]
-            if ratio_sum!=1:
+            if ratio_sum != 1:
                 for ind in self.ratios.keys():
                     self.ratios[ind] = self.ratios[ind]/ratio_sum
         else:
@@ -261,11 +238,11 @@ class Chromatogram:
             for ind, coef in self.calibration.items():
                 self.ratios[ind] = self.ratios[ind]*coef
                 ratio_sum += self.ratios[ind]
-            if ratio_sum!=1:
+            if ratio_sum != 1:
                 for ind in self.ratios.keys():
                     self.ratios[ind] = self.ratios[ind]/ratio_sum
     
-    def calculate_areas(self, cut:bool=False)->float:
+    def calculate_areas(self, cut: bool = False) -> float:
         """Function that calculates the area of all peaks using their Gaussian functions. Uses numpy.trapz.
 
         Parameters
@@ -283,7 +260,7 @@ class Chromatogram:
             areas.append(peak.area)
         return areas
     
-    def calculate_ratios(self, cut:bool=False)->List[float]:
+    def calculate_ratios(self) -> List[float]:  # cut do not used
         """Function that calculates the area ratios of all peaks at a given WL index using the Gaussian function. 
 
         Parameters
@@ -300,7 +277,7 @@ class Chromatogram:
             self.ratios[i] = self.peaks[i].area/sum(areas)
         return self.ratios
     
-    def calculate_er(self, enantiomers:Tuple[int])->List[float]:
+    def calculate_er(self, enantiomers: Tuple[int]) -> List[float]:
         """Function that calculates the enantiomeric ratios based on the peak area ratios given as arguments.
         er(X) = ratio(X)/sum(ratio(enantiomers))
 
@@ -315,7 +292,7 @@ class Chromatogram:
         """
         return [self.ratios[i]/sum([self.ratios[j] for j in enantiomers]) for i in enantiomers]
     
-    def calculate_conversion(self, to_exclude:int)->float:
+    def calculate_conversion(self, to_exclude: int) -> float:
         """Function that calculates the conversion by excluding certain peaks (e.g. excluding substrate)
         conversion(X) = (sum_ratios - ratio(X))/sum_ratios
         It assumes the sum of all ratios is 1.
@@ -329,7 +306,7 @@ class Chromatogram:
         float
             the conversion value
         """
-        if type(to_exclude)==tuple:
+        if type(to_exclude) == tuple:
             sum_to_exclude = 0
             for e in to_exclude:
                 if e in self.peaks.keys():
