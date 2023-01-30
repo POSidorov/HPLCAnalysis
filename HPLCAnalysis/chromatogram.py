@@ -318,21 +318,21 @@ class Chromatogram:
             return 1.-self.ratios[to_exclude]
 
     def _optional(self, value, default):
-    """Helper function that sets the optional value with given or default.
+        """Helper function that sets the optional value with given or default.
 
-    Parameters
-    ----------
-    value : Any
-        the argument of the function that is checked against None
-    default : Any
-        A default value to return if the given argument is None
+        Parameters
+        ----------
+        value : Any
+            the argument of the function that is checked against None
+        default : Any
+            A default value to return if the given argument is None
 
-    Returns
-    -------
-    Any
-        given value, or default value if None is given
-    """
-    if value is None:
-        return default
-    else:
-        return value
+        Returns
+        -------
+        Any
+            given value, or default value if None is given
+        """
+        if value is None:
+            return default
+        else:
+            return value
