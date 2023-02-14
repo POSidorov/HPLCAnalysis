@@ -123,10 +123,10 @@ def plot(ch: Chromatogram, wl_index: Optional[int] = None, peaks: bool = False, 
                                      color=colors[i]  # set color equal to a variable
                                      )))
 
-            x = p.gaussian.data.index
+            x = np.linspace(p.left, p.right, len(p.gaussian.data))
             baseline = p.baseline.eval(x=x)
             approx = list(p.gaussian.eval()+baseline)
-            fig.add_trace(go.Scatter(x=list(x)+list(x)[::-1], y=approx+list(baseline), 
+            fig.add_trace(go.Scatter(x=list(x)+list(x)[::-1], y=approx+list(baseline)[::1], 
                                      name="",
                                      line_shape='linear',
                                      fill='toself',

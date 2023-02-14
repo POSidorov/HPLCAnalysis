@@ -68,7 +68,8 @@ class Chromatogram:
 
             
     def calculate_peaks(self, wl_index: Optional[int] = None, wl: Optional[int] = None,
-                        height_diff: float = 0.3, min_height_diff: float = 0.01):
+                        height_diff: float = 0.3, min_height_diff: float = 0.01,
+                        resolution_parameter:int = 10):
         """Function that scans the chromatogram intensity at given index or wavelength to identify peaks.
         Creates a class atribute "peaks" as a dictionary with the following information:
         - "wl_index": The Wl index at which the peaks were found;
@@ -85,6 +86,9 @@ class Chromatogram:
             determines the minimum height of peaks to detect, related to the highest intensity
         min_height_diff: float
             determines the minimum height of peaks to detect, in the case when the base chromatogram is set
+        resolution_parameter: int
+            determines the "width" of search for a minimum; the higher the resolution of the data, the higher
+            the parameter should be. Default value is set to 10, empirically.
 
         Returns
         -------
@@ -97,7 +101,7 @@ class Chromatogram:
         if self.base_chromatogram is None:
             peaks, properties = signal.find_peaks(self.intensity[wl_index],
                                                   prominence=self.intensity[wl_index].max()*height_diff)
-            mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=10)[0]
+            mins = signal.argrelextrema(np.array(self.intensity[wl_index]), comparator=np.less_equal, order=resolution_parameter)[0]
             right_sides = np.searchsorted(mins, peaks, side="right")
             for i in range(len(peaks)):
                 self.peaks[i] = Peak(wl_index, list(self.intensity[wl_index].index[peaks])[i],

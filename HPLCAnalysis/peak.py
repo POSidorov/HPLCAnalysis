@@ -37,9 +37,9 @@ class Peak:
         
     def fit_baseline(self, intensity: DataFrame):
         lmodel = LinearModel()
-        x = intensity.loc[self.left:self.right, self.wl_index].index
-        y = intensity.loc[self.left:self.right, self.wl_index]
-        self.baseline = lmodel.fit([list(y)[0]]+[list(y)[-1]], x=[list(x)[0]]+[list(x)[-1]])
+        x = list(intensity.loc[self.left:self.right, self.wl_index].index)
+        y = list(intensity.loc[self.left:self.right, self.wl_index])
+        self.baseline = lmodel.fit([y[0], y[-1]], x=[x[0],x[-1]])
         
     def fit_gaussian(self, intensity: DataFrame):
         # gmodel = GaussianModel()
